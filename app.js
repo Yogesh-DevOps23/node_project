@@ -1,31 +1,29 @@
-const express = require('express');
-const mysql = require('mysql2');
-require('dotenv').config();
+const express = require("express");
+const mysql = require("mysql2");
+require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-const db = mysql.createPool({
+const connection = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
+  database: process.env.DB_NAME,
 });
 
-db.getConnection((err, connection) => {
+connection.connect((err) => {
   if (err) {
-    console.error('❌ MySQL Connection Failed:', err.message);
+    console.error("❌ MySQL Connection Failed:", err.message || err);
     process.exit(1);
   }
+  console.log("✅ Connected to MySQL");
+});
 
-  console.log('✅ Connected to MySQL');
-  connection.release();
+app.get("/", (req, res) => {
+  res.send("🚀 App running and connected to MySQL");
+});
 
-  app.get('/', (req, res) => {
-    res.send('🚀 Node.js + MySQL backend is live!');
-  });
-
-  app.listen(port, () => {
-    console.log(`🚀 Server is running on port ${port}`);
-  });
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
