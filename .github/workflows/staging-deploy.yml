@@ -56,11 +56,18 @@ jobs:
           cat << 'EOF' > deploy.sh
           #!/bin/bash
           set -e
+          echo "🔐 Logging in to AWS ECR..."
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
             docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+
+          echo "📥 Pulling Docker image..."
           docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+          echo "🧹 Stopping and removing old container..."
           docker stop node-app || true
           docker rm node-app || true
+
+          echo "🚀 Running new container..."
           docker run -d --name node-app -p 3000:3000 \
             -e DB_HOST=${{ secrets.DB_HOST }} \
             -e DB_USER=${{ secrets.DB_USER }} \
@@ -68,6 +75,20 @@ jobs:
             -e DB_NAME=${{ secrets.DB_NAME }} \
             -e PORT=${{ secrets.PORT }} \
             ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+          echo "⏳ Waiting for container to start..."
+          sleep 5
+
+          echo "🔍 Checking if container is running..."
+          if ! docker ps | grep node-app > /dev/null; then
+            echo "❌ ERROR: node-app container is not running!"
+            echo "📄 Container logs:"
+            docker logs node-app || true
+            exit 1
+          else
+            echo "✅ SUCCESS: node-app container is running!"
+          fi
           EOF
+
           chmod +x deploy.sh
           ./deploy.sh
