@@ -1,9 +1,5 @@
-const express = require("express");
-const mysql = require("mysql2");
-require("dotenv").config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
+require('dotenv').config();
+const mysql = require('mysql2');
 
 const connection = mysql.createConnection({
   host: process.env.DB_HOST,
@@ -16,14 +12,18 @@ connection.connect((err) => {
   if (err) {
     console.error("❌ MySQL Connection Failed:", err.message || err);
     process.exit(1);
+  } else {
+    console.log("🚀 Connected to MySQL Database");
   }
-  console.log("✅ Connected to MySQL");
 });
 
-app.get("/", (req, res) => {
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
   res.send("🚀 App running and connected to MySQL");
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+app.listen(process.env.PORT, () => {
+  console.log(`✅ Server running on port ${process.env.PORT}`);
 });
