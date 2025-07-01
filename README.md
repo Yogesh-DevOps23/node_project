@@ -43,6 +43,7 @@ node_project/
 ├── package.json
 ├── .env.example
 ├── .gitignore
+├── deploy.sh
 └── .github/
     └── workflows/
         └── staging-deploy.yml
@@ -137,28 +138,59 @@ Go to **GitHub → Repo → Settings → Secrets → Actions** and add:
 | DB\_PASSWORD             | `yourpassword`             |
 | DB\_NAME                 | `testdb`                   |
 | PORT                     | `3000`                     |
+| THIRD\_PARTY\_API\_KEY   | Optional API key (example) |
 
 ---
 
 ## 🔁 GitHub Actions CI/CD Workflow
 
-The file `.github/workflows/staging-deploy.yml` will:
+### `.github/workflows/staging-deploy.yml` will:
 
 1. Trigger on push to `staging` branch
 2. Build and tag Docker image
 3. Push image to AWS ECR
 4. SSH into EC2
-5. Use secrets to set environment variables
-6. Pull and run the container using:
+5. Create and execute `deploy.sh` on remote
+
+### SSH Block of the Workflow:
 
 ```yaml
-docker run -d --name node-app -p 3000:3000 \
-  -e DB_HOST=${{ secrets.DB_HOST}} \
-  -e DB_USER=${{ secrets.DB_USER }} \
-  -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-  -e DB_NAME=${{ secrets.DB_NAME }} \
-  -e PORT=${{ secrets.PORT }} \
-  ${{ secrets.ECR_REPOSITORY_URI }}:latest
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          echo "💻 Creating deploy.sh..."
+          cat << 'EOF' > deploy.sh
+          #!/bin/bash
+          set -e
+          echo "🔐 Logging in to AWS ECR..."
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+
+          echo "📥 Pulling Docker image..."
+          docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+          echo "🧹 Stopping old container..."
+          docker stop node-app || true
+          docker rm node-app || true
+
+          echo "🚀 Running new container..."
+          docker run -d --name node-app -p 3000:3000 \
+            -e DB_HOST=${{ secrets.DB_HOST }} \
+            -e DB_USER=${{ secrets.DB_USER }} \
+            -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            -e DB_NAME=${{ secrets.DB_NAME }} \
+            -e PORT=${{ secrets.PORT }} \
+            -e THIRD_PARTY_API_KEY=${{ secrets.THIRD_PARTY_API_KEY }} \
+            ${{ secrets.ECR_REPOSITORY_URI }}:latest
+          echo "✅ Deployment Complete!"
+          EOF
+
+          chmod +x deploy.sh
+          ./deploy.sh
 ```
 
 ---
@@ -190,6 +222,17 @@ docker logs node-app
 * Never commit `.env` (it's ignored via `.gitignore`)
 * Always use GitHub Secrets for CI/CD variables
 * Ensure MySQL allows external (Docker) connections
+* Developers should request new secrets to be added via GitHub Secrets — not commit them
+
+---
+
+## 🛡️ Secret Management Best Practices
+
+* Developers use placeholders like `$THIRD_PARTY_API_KEY` in code/scripts.
+* Secrets are injected by GitHub Actions using `secrets.XYZ`.
+* Values are stored securely by DevOps in GitHub Secrets.
+* `.env.example` should document expected secret names.
+* Optional: use inline `: "${ENV_VAR:?Missing}"` to force error if missing.
 
 ---
 
