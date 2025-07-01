@@ -21,10 +21,10 @@ jobs:
     - name: Install Dependencies
       run: npm ci
 
-    - name: Run Unit Tests
+    - name: Run Tests
       run: npm test
 
-    - name: Configure AWS credentials
+    - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -33,18 +33,18 @@ jobs:
 
     - name: Login to Amazon ECR
       run: |
-        aws ecr get-login-password | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
 
     - name: Build Docker Image
       run: docker build -t my-node-app .
 
-    - name: Tag Docker Image
+    - name: Tag Image
       run: docker tag my-node-app:latest ${{ secrets.ECR_REPOSITORY_URI }}:latest
 
-    - name: Push Docker Image to ECR
+    - name: Push to ECR
       run: docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
 
-    - name: Deploy to EC2
+    - name: Deploy to EC2 via SSH
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -53,6 +53,7 @@ jobs:
         script: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
             docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+          
           docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
           docker stop node-app || true
           docker rm node-app || true

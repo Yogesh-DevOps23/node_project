@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "printenv | grep -E 'DB_|PORT=' > .env && npm start"]
+CMD ["npm", "start"]

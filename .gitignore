@@ -1,20 +1,6 @@
-# Node modules
 node_modules/
-
-# Logs
+.env
 logs
 *.log
-
-# dotenv secrets
-.env
-
-# OS metadata
 .DS_Store
 Thumbs.db
-
-# Docker junk
-*.pid
-*.pid.lock
-
-# build
-dist/
