@@ -1,0 +1,62 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Run Unit Tests
+      run: npm test
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      run: |
+        aws ecr get-login-password | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+
+    - name: Build Docker Image
+      run: docker build -t my-node-app .
+
+    - name: Tag Docker Image
+      run: docker tag my-node-app:latest ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+    - name: Push Docker Image to ECR
+      run: docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
+          docker stop node-app || true
+          docker rm node-app || true
+          docker run -d --name node-app -p 3000:3000 \
+            -e DB_HOST=localhost \
+            -e DB_USER=root \
+            -e DB_PASSWORD=your_local_mysql_password \
+            -e DB_NAME=testdb \
+            ${{ secrets.ECR_REPOSITORY_URI }}:latest
