@@ -4,7 +4,7 @@ This project demonstrates a complete CI/CD pipeline for a **Node.js backend** co
 
 ---
 
-## 🎯 Objective
+## 🌟 Objective
 
 * Build a Dockerized Node.js backend that connects to a MySQL database.
 * Push the Docker image to AWS ECR.
@@ -13,7 +13,7 @@ This project demonstrates a complete CI/CD pipeline for a **Node.js backend** co
 
 ---
 
-## 🧾 Prerequisites
+## 📟 Prerequisites
 
 ### ✅ On AWS:
 
@@ -142,7 +142,7 @@ Go to **GitHub → Repo → Settings → Secrets → Actions** and add:
 
 ---
 
-## 🔁 GitHub Actions CI/CD Workflow
+## 🔄 GitHub Actions CI/CD Workflow
 
 ### `.github/workflows/staging-deploy.yml` will:
 
@@ -162,34 +162,43 @@ Go to **GitHub → Repo → Settings → Secrets → Actions** and add:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          echo "💻 Creating deploy.sh..."
+          echo "💻 Writing deploy.sh on EC2..."
           cat << 'EOF' > deploy.sh
           #!/bin/bash
           set -e
-          echo "🔐 Logging in to AWS ECR..."
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-          docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
 
-          echo "📥 Pulling Docker image..."
-          docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
+          echo "🔐 Logging into AWS ECR..."
+          aws ecr get-login-password --region "$AWS_REGION" | \
+            docker login --username AWS --password-stdin "$ECR_REPOSITORY_URI"
 
-          echo "🧹 Stopping old container..."
+          echo "📅 Pulling Docker image..."
+          docker pull "$ECR_REPOSITORY_URI":latest
+
+          echo "🪩 Removing old container..."
           docker stop node-app || true
           docker rm node-app || true
 
           echo "🚀 Running new container..."
           docker run -d --name node-app -p 3000:3000 \
-            -e DB_HOST=${{ secrets.DB_HOST }} \
-            -e DB_USER=${{ secrets.DB_USER }} \
-            -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-            -e DB_NAME=${{ secrets.DB_NAME }} \
-            -e PORT=${{ secrets.PORT }} \
-            -e THIRD_PARTY_API_KEY=${{ secrets.THIRD_PARTY_API_KEY }} \
-            ${{ secrets.ECR_REPOSITORY_URI }}:latest
-          echo "✅ Deployment Complete!"
+            -e DB_HOST="$DB_HOST" \
+            -e DB_USER="$DB_USER" \
+            -e DB_PASSWORD="$DB_PASSWORD" \
+            -e DB_NAME="$DB_NAME" \
+            -e PORT="$PORT" \
+            -e THIRD_PARTY_API_KEY="$THIRD_PARTY_API_KEY" \
+            "$ECR_REPOSITORY_URI":latest
+
+          echo "✅ Deployment completed!"
           EOF
 
           chmod +x deploy.sh
+          AWS_REGION=${{ secrets.AWS_REGION }} \
+          ECR_REPOSITORY_URI=${{ secrets.ECR_REPOSITORY_URI }} \
+          DB_HOST=${{ secrets.DB_HOST }} \
+          DB_USER=${{ secrets.DB_USER }} \
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          DB_NAME=${{ secrets.DB_NAME }} \
+          PORT=${{ secrets.PORT }} \
           ./deploy.sh
 ```
 
