@@ -56,7 +56,8 @@ jobs:
           docker rm node-app || true
           docker run -d --name node-app -p 3000:3000 \
             -e DB_HOST=localhost \
-            -e DB_USER=root \
-            -e DB_PASSWORD=your_local_mysql_password \
-            -e DB_NAME=testdb \
+            -e DB_USER=${{ secrets.DB_USER }} \
+            -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            -e DB_NAME=${{ secrets.DB_NAME }} \
+            -e PORT=${{ secrets.PORT }} \
             ${{ secrets.ECR_REPOSITORY_URI }}:latest
