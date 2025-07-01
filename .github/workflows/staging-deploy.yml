@@ -10,51 +10,82 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
+    - name: 📥 Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
+    - name: ⚙️ Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
 
-    - name: Install Dependencies
+    - name: 📦 Install Dependencies
       run: npm ci
 
-    - name: Run Tests
+    - name: 🧪 Run Tests
       run: npm test
 
-    - name: Configure AWS Credentials
+    - name: 🔐 Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
+    - name: 🔑 Login to Amazon ECR
       run: |
         aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-        docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+          docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
 
-    - name: Build Docker Image
+    - name: 🛠️ Build Docker Image
       run: docker build -t my-node-app .
 
-    - name: Tag Docker Image
+    - name: 🏷️ Tag Image
       run: docker tag my-node-app:latest ${{ secrets.ECR_REPOSITORY_URI }}:latest
 
-    - name: Push to Amazon ECR
+    - name: 🚀 Push to ECR
       run: docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
 
-    - name: Deploy to EC2 via SSH (use deploy.sh)
+    - name: 🔁 Deploy to EC2 via SSH
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          echo "📁 Writing deploy.sh on EC2..."
+          echo "💻 Writing deploy.sh on EC2..."
           cat << 'EOF' > deploy.sh
-          $(cat deploy.sh)
+          #!/bin/bash
+          set -e
+
+          echo "🔐 Logging in to AWS ECR..."
+          aws ecr get-login-password --region $AWS_REGION | \
+          docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
+
+          echo "📥 Pulling Docker image..."
+          docker pull $ECR_REPOSITORY_URI:latest
+
+          echo "🧹 Stopping and removing existing container..."
+          docker stop node-app || true
+          docker rm node-app || true
+
+          echo "🚀 Running new container..."
+          docker run -d --name node-app -p 3000:3000 \
+            -e DB_HOST=$DB_HOST \
+            -e DB_USER=$DB_USER \
+            -e DB_PASSWORD=$DB_PASSWORD \
+            -e DB_NAME=$DB_NAME \
+            -e PORT=$PORT \
+            $ECR_REPOSITORY_URI:latest
+
+          echo "✅ Verifying container..."
+          sleep 5
+          if ! docker ps | grep node-app > /dev/null; then
+            echo "❌ Deployment failed: Container not running."
+            docker logs node-app || true
+            exit 1
+          fi
+
+          echo "✅ Deployment completed successfully."
           EOF
 
           chmod +x deploy.sh
