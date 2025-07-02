@@ -14,5 +14,20 @@
   },
   "devDependencies": {
     "jest": "^30.0.3"
-  }
+  },
+  "description": "This project demonstrates a complete CI/CD pipeline for a **Node.js backend** connected to a **MySQL** database, built and deployed using **Docker**, **GitHub Actions**, and **AWS ECR**.",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yogesh-DevOps23/node_project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Yogesh-DevOps23/node_project/issues"
+  },
+  "homepage": "https://github.com/Yogesh-DevOps23/node_project#readme"
 }
